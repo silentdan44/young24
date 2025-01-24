@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
 # from scipy.constants import R
 import subprocess
+from itertools import combinations
 
 app = typer.Typer()
 lmp = os.getenv('LMP_EXEC')
@@ -120,7 +121,7 @@ def eq(inp:Annotated[str, typer.Argument(help="Name of alpha remd output .data f
     for i in range(numrep):
         seed = str(i) * 4
         eq_content = eq_template.replace('{number}', str(i)).replace('{input_file}', inp).replace('{seed}', seed)
-        slm = slurm_template.replace('{number}', str(i)).replace('{lmp}', lmp)
+        slm = slurm_template_eq.replace('{number}', str(i)).replace('{lmp}', lmp)
         with open(f'eq{i}.in', 'w') as f:
             f.write(eq_content)
         with open(f'eq{i}.sh', 'w') as f:
@@ -192,6 +193,44 @@ def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analy
 
     fig.savefig(f'{output}')
 
+@app.command()
+def repconv(inp:Annotated[str, typer.Argument(help="List of .txt files for analysis")] = '1x.txt,1y.txt,1z.txt,2x.txt,2y.txt,2z.txt,3x.txt,3y.txt,3z.txt,4x.txt,4y.txt,4z.txt,5x.txt,5y.txt,5z.txt',
+            output:Annotated[str, typer.Argument(help="Name of the plot")] = 'plot.png'):
+    df = pd.DataFrame()
+    slicecols = []
+    repscores = []
+    def sum_of_combinations(numbers, k):
+        # Generate all unique combinations of k numbers
+        combs = combinations(numbers, k)
+        sums = [sum(comb) for comb in combs]
+        return sums
+
+    # Чтение файлов и создание общего dataframe
+    for index, file in enumerate(inp.split(',')):
+        file = pd.read_csv(f'{file}', skiprows=1, header=None, sep='\s+')
+        file.columns = ['strain', 'px', 'py', 'pz']
+        pxs = file.px[1000:7000].sum()
+        pys = file.py[1000:7000].sum()
+        pzs = file.pz[1000:7000].sum()
+        if pxs > pys and pxs > pzs:
+            stress = file.px
+        elif pys > pxs and pys > pzs:
+            stress = file.py
+        else:
+            stress = file.pz
+        df[index] = stress
+
+    for column in df.columns:
+        slicecol = df[f'column'][1000:7000].std()
+        slicecol = slicecol / 6000 * 0.0000001
+        slicecols.append(slicecol)
+    for i in range(len(df.columns)-1):
+        repscore = min(sum_of_combinations(slicecols, {i+1}))
+        repscores.append(repscore)
+    plt.plot(repscores)
+    plt.xlabel('Number of replicas')
+    plt.ylabel('Std, Gpa')
+    plt.savefig(f'{output}')
 
 if __name__ == "__main__":
     """
