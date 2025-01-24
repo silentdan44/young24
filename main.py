@@ -23,7 +23,7 @@ kspace_style    pppm 1.0e-4
 special_bonds   dreiding 
 pair_modify     tail yes mix arithmetic
 
-read_data {name_of_data_fle}
+read_data {name_of_data_file}
 
 variable tmp equal "l_{direction}"
 variable L0 equal ${tmp}
@@ -69,8 +69,7 @@ run 1000000
 write_data eq{number}.data
 """
 slurm_template_eq = \
-"""
-#!/bin/bash
+"""#!/bin/bash
 #SBATCH -N 1                  
 #SBATCH -n 32 
 #SBATCH --output=eq{number}.out
@@ -79,8 +78,7 @@ module load mpi/latest
 mpirun -np 32 {lmp} -in eq{number}.in
 """
 slurm_template_nemd = \
-"""
-#!/bin/bash
+"""#!/bin/bash
 #SBATCH -N 1                  
 #SBATCH -n 8 
 #SBATCH --output={number}{direction}.out
