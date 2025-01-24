@@ -91,9 +91,10 @@ mpirun -np 8 {lmp} -in {number}{direction}.in
 def run_nemd(
         inp:Annotated[str, typer.Argument(help="List of .data files")] = 'eq1.data,eq2.data,eq3.data,eq4.data,eq5.data',
         maxdef:Annotated[float, typer.Argument(help="Max strain applied")] = 0.4):
+    num_str_steps = int(maxdef / 0.0000001)
     for index, file in enumerate(inp.split(',')):
         for var in ['x', 'y', 'z']:
-            lmpinp = lmp_template.replace('{name_of_data_file}', file).replace('{number}', f'{index+1}').replace('{number_of_steps}', f'{maxdef/0.0000001}').replace('{direction}', f'{var}')
+            lmpinp = lmp_template.replace('{name_of_data_file}', file).replace('{number}', f'{index+1}').replace('{number_of_steps}', f'{num_str_steps}').replace('{direction}', f'{var}')
             slm = slurm_template_nemd.replace('{number}', str(index+1)).replace('{lmp}', lmp).replace('{direction}', str(var))
             with open(f'{index+1}{var}.in', 'w') as f:
                 f.write(lmpinp)
