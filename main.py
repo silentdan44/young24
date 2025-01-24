@@ -44,6 +44,41 @@ thermo_style       custom step v_strain temp v_p2 v_p3 v_p4 ke pe press
 
 run number_of_steps
 """
+eq_template = \
+"""
+units real
+dimension      3
+boundary       p p p
+atom_style     full
+pair_style      lj/cut/coul/long 10
+bond_style      harmonic
+angle_style     harmonic
+dihedral_style  harmonic
+improper_style umbrella
+kspace_style    pppm 1.0e-4
+special_bonds   dreiding  
+pair_modify     tail yes mix arithmetic
+read_data {input_file}
+minimize 1.0e-10 1.0e-10 8000 8000
+timestep 1
+velocity     all create 300 {seed} mom yes rot yes dist gaussian
+fix 1 all npt temp 300 300 100 iso 1 1 1000 
+thermo 1000
+thermo_style custom step lx ly lz  pe temp
+run 1000000
+write_data eq{number}.data
+"""
+slurm_template = \
+"""
+#!/bin/bash
+#SBATCH -N 1                  
+#SBATCH -n 32 
+#SBATCH --output=eq{number}.out
+module load mpi/latest
+
+mpirun -np 32 {lmp} -in eq{number}.in
+"""
+
 
 @app.command()
 def run_nemd(
@@ -57,42 +92,23 @@ def run_nemd(
             lmp_template.replace('direction', f'{var}')
             with open(f'{index+1}{var}.in', 'w') as f:
                 f.write(lmp_template)
-            subprocess.run(f'mpirun -np 32 ./{lmp} -i {index+1}{var}.in')
+            # subprocess.run(f'mpirun -np 32 {lmp} -i {index+1}{var}.in', shell=True)
 
 
 
 @app.command()
 def eq(inp:Annotated[str, typer.Argument(help="Name of alpha remd output .data file")],
        numrep:Annotated[int, typer.Argument(help="Number of replicas")]):
-    eq_template = \
-    """
-    units real
-    dimension      3
-    boundary       p p p
-    atom_style     full
-    pair_style      lj/cut/coul/long 10
-    bond_style      harmonic
-    angle_style     harmonic
-    dihedral_style  harmonic
-    improper_style umbrella
-    kspace_style    pppm 1.0e-4
-    special_bonds   dreiding  
-    pair_modify     tail yes mix arithmetic
-    read_data name_of_input
-    minimize 1.0e-10 1.0e-10 8000 8000
-    timestep 1
-    fix 1 all npt temp 300 300 100 iso 1 1 1000 
-    thermo 1000
-    thermo_style custom step lx ly lz  pe temp
-    run 1000000
-    write_data eqnumber.data
-    """
-    eq_template.replace('name_of_input', inp)
     for i in range(numrep):
-        eq_template.replace('number', str(i))
-        with open(f'eq{i}.inp', 'w') as f:
-            f.write(eq_template)
-        subprocess.run(f'mpirun -np 32 ./{lmp} -i eq{i}.in')
+        seed = str(i) * 4
+        eq_content = eq_template.replace('{number}', str(i)).replace('{input_file}', inp).replace('{seed}', seed)
+        slm = slurm_template.replace('{number}', str(i)).replace('{lmp}', lmp)
+        with open(f'eq{i}.in', 'w') as f:
+            f.write(eq_content)
+        with open(f'eq{i}.sh', 'w') as f:
+            f.write(slm)
+        subprocess.run(f'sbatch eq{i}.sh', shell=True)
+        # subprocess.run(f'mpirun -np 32 {lmp} -i eq{i}.in', shell=True)
 
 
 
