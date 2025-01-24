@@ -25,14 +25,14 @@ pair_modify     tail yes mix arithmetic
 
 read_data {name_of_data_file}
 
-variable tmp equal "l_{direction}"
+variable tmp equal "l{direction}"
 variable L0 equal ${tmp}
 
 timestep 1
 fix             1 all npt temp 300 300 100 y 1 1 1000 z 1 1 1000
 fix             2 all deform 1 {direction} erate 0.0000001 units box remap x
 
-variable strain equal "(l_{direction} - v_L0)/v_L0"
+variable strain equal "(l{direction} - v_L0)/v_L0"
 variable p1 equal "v_strain"
 variable p2 equal "-pxx/10000*1.01325"
 variable p3 equal "-pyy/10000*1.01325"
