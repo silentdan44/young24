@@ -23,26 +23,26 @@ kspace_style    pppm 1.0e-4
 special_bonds   dreiding 
 pair_modify     tail yes mix arithmetic
 
-read_data name_of_data_fle
+read_data {name_of_data_fle}
 
-variable tmp equal "l_direction"
+variable tmp equal "l_{direction}"
 variable L0 equal ${tmp}
 
 timestep 1
 fix             1 all npt temp 300 300 100 y 1 1 1000 z 1 1 1000
-fix             2 all deform 1 direction erate 0.0000001 units box remap x
+fix             2 all deform 1 {direction} erate 0.0000001 units box remap x
 
-variable strain equal "(l_direction - v_L0)/v_L0"
+variable strain equal "(l_{direction} - v_L0)/v_L0"
 variable p1 equal "v_strain"
 variable p2 equal "-pxx/10000*1.01325"
 variable p3 equal "-pyy/10000*1.01325"
 variable p4 equal "-pzz/10000*1.01325"
-fix def1 all print 100 "${p1} ${p2} ${p3} ${p4}" file number_direction.txt screen no
+fix def1 all print 100 "${p1} ${p2} ${p3} ${p4}" file {number}{direction}.txt screen no
 
 thermo 10000
 thermo_style       custom step v_strain temp v_p2 v_p3 v_p4 ke pe press
 
-run number_of_steps
+run {number_of_steps}
 """
 eq_template = \
 """
@@ -68,7 +68,7 @@ thermo_style custom step lx ly lz  pe temp
 run 1000000
 write_data eq{number}.data
 """
-slurm_template = \
+slurm_template_eq = \
 """
 #!/bin/bash
 #SBATCH -N 1                  
@@ -78,27 +78,37 @@ module load mpi/latest
 
 mpirun -np 32 {lmp} -in eq{number}.in
 """
+slurm_template_nemd = \
+"""
+#!/bin/bash
+#SBATCH -N 1                  
+#SBATCH -n 8 
+#SBATCH --output={number}{direction}.out
+module load mpi/latest
 
+mpirun -np 8 {lmp} -in {number}{direction}.in
+"""
 
 @app.command()
 def run_nemd(
         inp:Annotated[str, typer.Argument(help="List of .data files")] = 'eq1.data,eq2.data,eq3.data,eq4.data,eq5.data',
         maxdef:Annotated[float, typer.Argument(help="Max strain applied")] = 0.4):
     for index, file in enumerate(inp.split(',')):
-        lmp_template.replace('name_of_data_file', f'{file}')
-        lmp_template.replace('number', f'{index+1}')
-        lmp_template.replace('number_of_steps', f'{maxdef/0.0000001}')
         for var in ['x', 'y', 'z']:
-            lmp_template.replace('direction', f'{var}')
+            lmpinp = lmp_template.replace('{name_of_data_file}', file).replace('{number}', f'{index+1}').replace('{number_of_steps}', f'{maxdef/0.0000001}').replace('{direction}', f'{var}')
+            slm = slurm_template_nemd.replace('{number}', str(index+1)).replace('{lmp}', lmp).replace('{direction}', str(var))
             with open(f'{index+1}{var}.in', 'w') as f:
-                f.write(lmp_template)
+                f.write(lmpinp)
+            with open(f'{index+1}{var}.sh', 'w') as f:
+                f.write(slm)
+            subprocess.run(f'sbatch {index+1}{var}.sh', shell=True)
             # subprocess.run(f'mpirun -np 32 {lmp} -i {index+1}{var}.in', shell=True)
 
 
 
 @app.command()
 def eq(inp:Annotated[str, typer.Argument(help="Name of alpha remd output .data file")],
-       numrep:Annotated[int, typer.Argument(help="Number of replicas")]):
+       numrep:Annotated[int, typer.Argument(help="Number of replicas")] = 5):
     for i in range(numrep):
         seed = str(i) * 4
         eq_content = eq_template.replace('{number}', str(i)).replace('{input_file}', inp).replace('{seed}', seed)
