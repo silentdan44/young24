@@ -29,7 +29,7 @@ variable tmp equal "l{direction}"
 variable L0 equal ${tmp}
 
 timestep 1
-fix             1 all npt temp 300 300 100 y 1 1 1000 z 1 1 1000
+fix             1 all npt temp 300 300 100 {first_dir} 1 1 1000 {second_dir} 1 1 1000
 fix             2 all deform 1 {direction} erate 0.0000001 units box remap x
 
 variable strain equal "(l{direction} - v_L0)/v_L0"
@@ -94,7 +94,16 @@ def run_nemd(
     num_str_steps = int(maxdef / 0.0000001)
     for index, file in enumerate(inp.split(',')):
         for var in ['x', 'y', 'z']:
-            lmpinp = lmp_template.replace('{name_of_data_file}', file).replace('{number}', f'{index+1}').replace('{number_of_steps}', f'{num_str_steps}').replace('{direction}', f'{var}')
+            if var == 'x':
+                first_dir = 'y'
+                second_dir = 'z'
+            elif var == 'y':
+                first_dir = 'x'
+                second_dir = 'z'
+            else:
+                first_dir = 'x'
+                second_dir = 'y'
+            lmpinp = lmp_template.replace('{name_of_data_file}', file).replace('{number}', f'{index+1}').replace('{number_of_steps}', f'{num_str_steps}').replace('{direction}', f'{var}').replace('{first_dir}', first_dir).replace('{second_dir}', second_dir)
             slm = slurm_template_nemd.replace('{number}', str(index+1)).replace('{lmp}', lmp).replace('{direction}', str(var))
             with open(f'{index+1}{var}.in', 'w') as f:
                 f.write(lmpinp)
