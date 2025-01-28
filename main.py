@@ -198,7 +198,7 @@ def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analy
 
     # Stress-strain curve усредненная
     axs[0].scatter(df.strain, df['Mean'], alpha=0.1)
-    axs[0].plot(x, reg_of_all_reps.slope * x + reg_of_all_reps.x[1], linewidth=5, color='b')
+    axs[0].plot(x, reg_of_all_reps.slope * x + reg_of_all_reps.intercept, linewidth=5, color='r')
     axs[0].set_xlabel('Strain')
     axs[0].set_ylabel('Stress, Gpa')
     axs[0].text(2, 3, f'Young modulus={reg_of_all_reps.slope} Gpa')
