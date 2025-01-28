@@ -194,24 +194,25 @@ def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analy
 
     # Построение графиков
     fig, axs = plt.subplots(3)
-    fig.set_size_inches(10, 8)
+    fig.set_size_inches(10, 10)
 
     # Stress-strain curve усредненная
     axs[0].scatter(df.strain, df['Mean'], alpha=0.1)
     axs[0].plot(x, reg_of_all_reps.slope * x + reg_of_all_reps.intercept, linewidth=5, color='r')
     axs[0].set_xlabel('Strain')
     axs[0].set_ylabel('Stress, Gpa')
-    axs[0].text(2, 3, f'Young modulus={reg_of_all_reps.slope} Gpa')
 
     # Модуль Юнга от числа реплик
-    axs[1].plot(youngs)
+    axs[1].plot(youngs, label=f'Young modulus={reg_of_all_reps.slope.round(3)} Gpa')
     axs[1].set_xlabel('Number of replicas')
     axs[1].set_ylabel('Young modulus, Gpa')
+    axs[1].legend()
 
     # Ошибки модуля Юнга
-    axs[2].plot(errors)
+    axs[2].plot(errors, label=f'Estimated error={errors[-1].round(3)} Gpa')
     axs[2].set_xlabel('Number of replicas')
     axs[2].set_ylabel('Estimated std of Young modulus, Gpa')
+    axs[2].legend()
 
     fig.savefig(f'{output}')
 
