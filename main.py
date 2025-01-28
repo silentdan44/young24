@@ -90,7 +90,7 @@ mpirun -np 8 {lmp} -in {number}{direction}.in
 @app.command()
 def run_nemd(
         inp:Annotated[str, typer.Argument(help="List of .data files")] = 'eq1.data,eq2.data,eq3.data,eq4.data,eq5.data',
-        maxdef:Annotated[float, typer.Option(help="Max strain applied")] = 0.4):
+        maxdef:Annotated[float, typer.Option(help="Max strain applied")] = 0.05):
     """
     Takes a list of equilibrated files and performs deformation for each of them:
 
@@ -130,14 +130,14 @@ def eq(inp:Annotated[str, typer.Argument(help="Name of alpha remd output .data f
     """
 
     for i in range(numrep):
-        seed = str(i) * 4
-        eq_content = eq_template.replace('{number}', str(i)).replace('{input_file}', inp).replace('{seed}', seed)
-        slm = slurm_template_eq.replace('{number}', str(i)).replace('{lmp}', lmp)
-        with open(f'eq{i}.in', 'w') as f:
+        seed = str(i+1) * 4
+        eq_content = eq_template.replace('{number}', str(i+1)).replace('{input_file}', inp).replace('{seed}', seed)
+        slm = slurm_template_eq.replace('{number}', str(i+1)).replace('{lmp}', lmp)
+        with open(f'eq{i+1}.in', 'w') as f:
             f.write(eq_content)
-        with open(f'eq{i}.sh', 'w') as f:
+        with open(f'eq{i+1}.sh', 'w') as f:
             f.write(slm)
-        subprocess.run(f'sbatch eq{i}.sh', shell=True)
+        subprocess.run(f'sbatch eq{i+1}.sh', shell=True)
         # subprocess.run(f'mpirun -np 32 {lmp} -i eq{i}.in', shell=True)
 
 
