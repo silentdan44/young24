@@ -3,9 +3,7 @@ import typer
 from typing_extensions import Annotated
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.optimize import least_squares
 import subprocess
-from itertools import combinations
 from scipy.stats import linregress
 
 
@@ -141,7 +139,7 @@ def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analy
     for index, file in enumerate(inp.split(',')):
         file = pd.read_csv(f'{file}', skiprows=1, header=None, sep='\s+')
         file.columns = ['strain', 'px', 'py', 'pz']
-        pxs = file.px[1000:7000].sum()
+        pxs = file.px[1000:7000].sum() # Чтобы понять по какому из направлений происходит деформация
         pys = file.py[1000:7000].sum()
         pzs = file.pz[1000:7000].sum()
         if pxs > pys and pxs > pzs:
@@ -153,38 +151,47 @@ def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analy
         df[index] = stress
         df['strain'] = file.strain
 
-    # Усреднение значений
-    df['Mean'] = df.mean(axis=1)
-    numrep = len(df.columns) - 2
-    std_0 = df[0][:5000].std().round(3)
-    std_mean = df['Mean'][:5000].std().round(3)
 
     # Линейная регрессия
-    deformation_range = (0, 0.02)
-    x = df[df['strain'] <= max(deformation_range)]['strain']
-    y = df[df['strain'] <= max(deformation_range)]['Mean']
-    res = stats.linregress(x, y)
+    deformation_range = (0, 0.02) # Границы линейного участка
+    df_def = df[df['strain'] <= max(deformation_range)]
+    x = df_def.strain
+    errors = []
+    youngs = []
 
+    for i in range(len(df.columns)): # Цикл считает, как изменется модуль Юнга и std напряжения от усреднения
+        y = df_def.iloc[:,:i+1].mean(axis=1)
+        res = linregress(x, y)
+        error = res.stderr
+        young = res.slope
+        errors.append(error)
+        youngs.append(young)
 
-
-    young = result.x[0]
+    y = df_def.mean(axis=1)
+    reg_of_all_reps = linregress(x, y)
+    # Усреднение stress-strain curve
+    df['Mean'] = df.mean(axis=1)
 
     # Построение графиков
-    fig, axs = plt.subplots(2)
+    fig, axs = plt.subplots(3)
     fig.set_size_inches(10, 8)
 
     # Stress-strain curve усредненная
     axs[0].scatter(df.strain, df['Mean'], alpha=0.1)
-    axs[0].plot(x, result.x[0] * x + result.x[1], linewidth=5, color='b')
+    axs[0].plot(x, reg_of_all_reps.slope * x + reg_of_all_reps.x[1], linewidth=5, color='b')
     axs[0].set_xlabel('Strain')
     axs[0].set_ylabel('Stress, Gpa')
-    axs[0].text(2, 3, f'Young modulus={young} Gpa')
+    axs[0].text(2, 3, f'Young modulus={reg_of_all_reps.slope} Gpa')
 
-    # Распределение стресса до усреднения и после
-    axs[1].hist(df[0][:5000], bins=50, label=f'w/o replicas, std={std_0} Gpa')
-    axs[1].hist(df['Mean'][:5000], bins=50, label=f'mean value of {numrep} replicas, std={std_mean} Gpa')
-    axs[1].legend()
-    axs[1].set_xlabel('Stress')
+    # Модуль Юнга от числа реплик
+    axs[1].plot(youngs)
+    axs[1].set_xlabel('Number of replicas')
+    axs[1].set_ylabel('Young modulus, Gpa')
+
+    # Ошибки модуля Юнга
+    axs[2].plot(errors)
+    axs[2].set_xlabel('Number of replicas')
+    axs[2].set_ylabel('Estimated std of Young modulus, Gpa')
 
     fig.savefig(f'{output}')
 
