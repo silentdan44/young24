@@ -1,13 +1,14 @@
 import os
 import typer
-# from rich import print
 from typing_extensions import Annotated
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
-# from scipy.constants import R
 import subprocess
 from itertools import combinations
+from scipy.stats import linregress
+
+
 
 app = typer.Typer()
 lmp = os.getenv('LMP_EXEC')
@@ -162,15 +163,9 @@ def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analy
     deformation_range = (0, 0.02)
     x = df[df['strain'] <= max(deformation_range)]['strain']
     y = df[df['strain'] <= max(deformation_range)]['Mean']
+    res = stats.linregress(x, y)
 
-    def calc_y(params, x):
-        return params[0] * x + params[1]
 
-    def fun(params):
-        return calc_y(params, x) - y
-
-    params = [1, 2]
-    result = least_squares(fun, params)
 
     young = result.x[0]
 
@@ -193,44 +188,7 @@ def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analy
 
     fig.savefig(f'{output}')
 
-@app.command()
-def repconv(inp:Annotated[str, typer.Argument(help="List of .txt files for analysis")] = '1x.txt,1y.txt,1z.txt,2x.txt,2y.txt,2z.txt,3x.txt,3y.txt,3z.txt,4x.txt,4y.txt,4z.txt,5x.txt,5y.txt,5z.txt',
-            output:Annotated[str, typer.Argument(help="Name of the plot")] = 'plot.png'):
-    df = pd.DataFrame()
-    slicecols = []
-    repscores = []
-    def sum_of_combinations(numbers, k):
-        # Generate all unique combinations of k numbers
-        combs = combinations(numbers, k)
-        sums = [sum(comb) for comb in combs]
-        return sums
 
-    # Чтение файлов и создание общего dataframe
-    for index, file in enumerate(inp.split(',')):
-        file = pd.read_csv(f'{file}', skiprows=1, header=None, sep='\s+')
-        file.columns = ['strain', 'px', 'py', 'pz']
-        pxs = file.px[1000:7000].sum()
-        pys = file.py[1000:7000].sum()
-        pzs = file.pz[1000:7000].sum()
-        if pxs > pys and pxs > pzs:
-            stress = file.px
-        elif pys > pxs and pys > pzs:
-            stress = file.py
-        else:
-            stress = file.pz
-        df[index] = stress
-
-    for column in df.columns:
-        slicecol = df[f'column'][1000:7000].std()
-        slicecol = slicecol / 6000 * 0.0000001
-        slicecols.append(slicecol)
-    for i in range(len(df.columns)-1):
-        repscore = min(sum_of_combinations(slicecols, {i+1}))
-        repscores.append(repscore)
-    plt.plot(repscores)
-    plt.xlabel('Number of replicas')
-    plt.ylabel('Std, Gpa')
-    plt.savefig(f'{output}')
 
 if __name__ == "__main__":
     """
