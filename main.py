@@ -90,7 +90,12 @@ mpirun -np 8 {lmp} -in {number}{direction}.in
 @app.command()
 def run_nemd(
         inp:Annotated[str, typer.Argument(help="List of .data files")] = 'eq1.data,eq2.data,eq3.data,eq4.data,eq5.data',
-        maxdef:Annotated[float, typer.Argument(help="Max strain applied")] = 0.4):
+        maxdef:Annotated[float, typer.Option(help="Max strain applied")] = 0.4):
+    """
+    Takes a list of equilibrated files and performs deformation for each of them:
+
+    python main.py run-nemd eq1.data,eq2.data,eq3.data --maxdef 0.1
+    """
     num_str_steps = int(maxdef / 0.0000001)
     for index, file in enumerate(inp.split(',')):
         for var in ['x', 'y', 'z']:
@@ -116,7 +121,14 @@ def run_nemd(
 
 @app.command()
 def eq(inp:Annotated[str, typer.Argument(help="Name of alpha remd output .data file")],
-       numrep:Annotated[int, typer.Argument(help="Number of replicas")] = 5):
+       numrep:Annotated[int, typer.Option(help="Number of replicas")] = 5):
+
+    """
+    Generates replicas by changing seed and performing npt equilibration for statistics:
+
+    python main.py eq start.data --numrep 10
+    """
+
     for i in range(numrep):
         seed = str(i) * 4
         eq_content = eq_template.replace('{number}', str(i)).replace('{input_file}', inp).replace('{seed}', seed)
@@ -132,7 +144,15 @@ def eq(inp:Annotated[str, typer.Argument(help="Name of alpha remd output .data f
 
 @app.command()
 def analyse(inp:Annotated[str, typer.Argument(help="List of .txt files for analysis")] = '1x.txt,1y.txt,1z.txt,2x.txt,2y.txt,2z.txt,3x.txt,3y.txt,3z.txt,4x.txt,4y.txt,4z.txt,5x.txt,5y.txt,5z.txt',
-            output:Annotated[str, typer.Argument(help="Name of the plot")] = 'plot.png'):
+            output:Annotated[str, typer.Option(help="Name of the plot")] = 'plot.png'):
+
+    """
+    Takes a list of .txt files and a plot name as arguments and returns a plot with analysis:
+
+    python main.py analyse 1x.txt,1y.txt,1z.txt,2x.txt,2y.txt,2z.txt --output analysis.png
+
+    """
+
     df = pd.DataFrame()
 
     # Чтение файлов и создание общего dataframe

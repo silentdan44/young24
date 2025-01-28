@@ -5,3 +5,9 @@ In order to use this code for simulation you have to create a variable with path
 ```bash
 export LMP_EXEC=path/to/your/lammps/executable/lmp_mpi 
 ```
+The simplest pipeline should look like this:
+```bash
+python main.py eq start.data
+python main.py run-nemd --maxdef 0.1
+python main.py analyse
+```
